@@ -1,0 +1,90 @@
+---
+title: "Intro"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+```{r, fig.width=14, fig.height=14}
+library(geoLM)
+library(MASS)
+
+### Read Montsalvens
+D =as.matrix(read.table("Montsalvens_1.txt")); pOrient=numOrient(D)
+sObs=ifelse(D[,3]==-1, 3, ifelse(D[,3]==0, 3, ifelse(D[,3]>0, 2^.5*3, NA) ) ) / 10^4
+P0=as.matrix(read.table("Montsalvens_P0.txt",header=TRUE))
+ref = pOrient + (2*which(P0[,1]==1)-1):(2*which(P0[,1]==9))
+Mont1=list(D=D, sObs=sObs, P0=P0, ref=ref) 
+
+D =as.matrix(read.table("Montsalvens_2.txt"))
+Mont2=list(D=D, sObs=sObs, P0=P0, ref=ref) 
+
+### Read SwAnna
+D =as.matrix(read.table("SwAnnaCykl5_orig.txt")); pOrient=numOrient(D)
+sObs=ifelse(D[,3]==-1, 6, ifelse(D[,3]==0, 5, ifelse(D[,3]>0, 8, NA) ) ) / 10^4
+P0=as.matrix(read.table("SwAnnaCykl5_P0.txt",header=TRUE))
+ref = pOrient + (2*which(P0[,1]==11)-1):(2*which(P0[,1]==19))
+#ref = pOrient + (2*which(P0[,1]==11)-1):(2*which(P0[,1]==103))
+SwAn1=list(D=D, sObs=sObs, P0=P0, ref=ref) 
+
+D =as.matrix(read.table("SwAnnaCykl6_orig.txt")); pOrient=numOrient(D)
+sObs=ifelse(D[,3]==-1, 8, ifelse(D[,3]==0, 8, ifelse(D[,3]>0, 11, NA) ) ) / 10^4
+P0=as.matrix(read.table("SwAnnaCykl6_P0.txt",header=TRUE))
+#ref = pOrient + (2*which(P0[,1]==11)-1):(2*which(P0[,1]==24))
+ref = pOrient + (2*which(P0[,1]==11)-1):(2*which(P0[,1]==103))
+SwAn2=list(D=D, sObs=sObs, P0=P0, ref=ref) 
+
+### Robust Deformation Analysis
+
+Adj1=geolm(Mont1); delp1=Adj1$delp; Ainv1=Adj1$Ainv
+Adj2=geolm(Mont2); delp2=Adj2$delp; Ainv2=Adj2$Ainv
+delp12=delp2-delp1; P012=Mont1$P0; refP012=1:7
+
+#Adj1=geolm(SwAn1); delp1=Adj1$delp[-(19:20)]; Ainv1=Adj1$Ainv[-(19:20),]
+#Adj2=geolm(SwAn2); delp2=Adj2$delp[-(37:38)]; Ainv2=Adj2$Ainv[-(37:38),]
+#delp12=delp2-delp1; P012=SwAn1$P0[-10,]; refP012=c(8:9,11:18) 
+
+Out=rda(delp12, cbind(Ainv1,Ainv2), P012, refP012, method="par4")
+ 
+### Deformation Analysis based on Difference Observations Model
+
+#P0=as.matrix(read.table("SwAnnaCykl5_P0.txt",header=TRUE))[-10,] ## bez pkt 13
+#D1=as.matrix(read.table("SwAnnaCykl5_pp2.txt"))
+#D2=as.matrix(read.table("SwAnnaCykl6_pp2.txt")) 
+
+#D=setCommonData(D1,D2); pOrient=numOrient(D)
+#sObs=ifelse(D[,3]==-1, 2^.5*5, ifelse(D[,3]==0, 2^.5*5, ifelse(D[,3]>0, 10, NA) ) ) / 10^4
+#ref=c(18:21,24:39)
+#Mod=setCommonModel(D,P0)   ## SNR ~ 2.6
+
+### Graphics
+
+library(ellipse)
+Qx=10^8*(Ainv1 %*% t(Ainv1)); nn=ncol(Ainv1); pp=nrow(Ainv1)
+prog=sqrt(2*qf(.95,2,nn-pp+3))
+P1=P012; P2=P1[,2:3]+10*Out[,4:5]
+#P1=P012; P2=P1[,2:3]+10*P1[,4:5]
+
+nP=nrow(P1); Ela=P2[,2:1]
+for(i in 1:nrow(P1)){
+  pts=(2*i-1):(2*i); 
+  Ela=rbind( Ela, ellipse(2*Qx[pts,pts], centre=P1[i,2:3], npoints=200, t=prog)[,2:1] )
+} 
+xRan=range(Ela[,1]); yRan=range(Ela[,2]); 
+#dxR=xRan[2]-xRan[1]; xRan[1]=xRan[1]-.05*dxR; xRan[2]=xRan[2]+.05*dxR
+#dyR=yRan[2]-yRan[1]; yRan[1]=yRan[1]-.05*dyR; yRan[2]=yRan[2]+.05*dyR
+
+par(pty="s")
+
+plot(P1[,3],P1[,2],xlim=xRan,ylim=yRan, 
+    las=1,xlab="y",ylab="x",pch=".",cex=2)#,axes=FALSE)
+  for(i in 1:nrow(P1)){
+    pts=(2*i-1):(2*i); kol=NA; #if(i<8) kol=gray(.7)
+    polygon( ellipse(2*Qx[pts,pts], centre=P1[i,2:3], npoints=200, t=prog)[,2:1],      
+             col=kol )#palette(rainbow(50))[15] )
+    arrows(P1[i,3], P1[i,2],P2[i,2],P2[i,1], length=0.15, angle=7.5, code=2,lwd=1.5)
+    text(P1[i,3]+2.5,P1[i,2]+2.5,labels=as.character(P1[i,1])) 
+  }
+
+```
+
