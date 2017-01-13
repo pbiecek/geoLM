@@ -3,6 +3,8 @@ Network and Deformation Analysis (with Piotr Pokarowski)
 
 ## Install
 
+Install directly from GitHub
+
 ```
 devtools::install_github("pbiecek/geoLM")
 ```
