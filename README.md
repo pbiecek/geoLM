@@ -1,5 +1,5 @@
 # geoLM
-Network and Deformation Analysis
+Network and Deformation Analysis (with Piotr Pokarowski)
 
 ## Install
 
